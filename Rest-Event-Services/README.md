@@ -1,47 +1,87 @@
-# Proyecto Base Implementando Clean Architecture
+## Environment:
+- Java version: 1.8
+- Maven version: 3.*
+- Spring Boot version: 2.2.1.RELEASE
 
-## Antes de Iniciar
+## Read-Only Files:
+- src/test/*
 
-Empezaremos por explicar los diferentes componentes del proyectos y partiremos de los componentes externos, continuando con los componentes core de negocio (dominio) y por último el inicio y configuración de la aplicación.
+## Data:
+Description of an event data JSON object:
 
-Lee el artículo [Clean Architecture — Aislando los detalles](https://medium.com/bancolombia-tech/clean-architecture-aislando-los-detalles-4f9530f35d7a)
+```json
+{
+   "id": "the unique ID of the event (Integer)",
+   "type": "the type of the event, written in PascalCase (String)",
+   "public": "whether the event is public, either true or false (Boolean)",
+   "repoId": "the ID of the repository the event belongs to (Integer)",
+   "actorId": "the ID of the user who created the event (Integer)"
+}
+```
 
-# Arquitectura
+Example of an event data JSON object:
+```json
+{
+    "type": "PushEvent",
+    "public": true,
+    "repoId": 1,
+    "actorId": 1
+}
+```
 
-![Clean Architecture](https://miro.medium.com/max/1400/1*ZdlHz8B0-qu9Y-QO3AXR_w.png)
 
-## Domain
+## Requirements:
+You are provided with the implementation of the Event model. The REST service must expose the `/events` endpoint, which allows for managing the collection of event records in the following way:
 
-Es el módulo más interno de la arquitectura, pertenece a la capa del dominio y encapsula la lógica y reglas del negocio mediante modelos y entidades del dominio.
+`POST` request to `/events` :
+* creates a new event
+* expects a JSON event object without an id property as the body payload. You can assume that the given object is always valid except that the type might be invalid. A valid type is one of 'PushEvent', 'ReleaseEvent', or 'WatchEvent'.
+* you can assume that all other values in the payload given to create the object are always valid
+* if the given type is invalid, the response code is 400
+* if the type is valid, it adds the given event object to the collection of events and assigns a unique integer id to it. The first created event must have id 1, the second one 2, and so on.
+* if the type is valid, the response code is 201 and the response body is the created event object, including its id
 
-## Usecases
+`GET` request to `/events`:
+* returns a collection of all events
+* the response code is 200, and the response body is an array of all events ordered by their ids in increasing order
 
-Este módulo gradle perteneciente a la capa del dominio, implementa los casos de uso del sistema, define lógica de aplicación y reacciona a las invocaciones desde el módulo de entry points, orquestando los flujos hacia el módulo de entities.
+`GET` request to `/repos/{userId}/events`:
+* returns a collection of events created by given user
+* the response code is 200, and the response body is an array of events created by the given user ordered by their ids in increasing order
 
-## Infrastructure
+`GET` request to `/repos/{repoId}/events`:
+* returns a collection of events related to the given repository
+* the response code is 200, and the response body is an array of events related to the given repository ordered by their ids in increasing order
 
-### Helpers
+`GET` request to `/events/{eventId}`:
+* returns an event with the given id
+* if the matching event exists, the response code is 200 and the response body is the matching event object
+* if there is no event in the collection with the given id, the response code is 404
 
-En el apartado de helpers tendremos utilidades generales para los Driven Adapters y Entry Points.
+`GET` request to all endpoints that return a collection of objects (`/repos/{repoId}/events ,/users/{userId}/events, /events`)
+* takes the optional parameter public, which is used to filter the returned objects, e.g.:
 
-Estas utilidades no están arraigadas a objetos concretos, se realiza el uso de generics para modelar comportamientos
-genéricos de los diferentes objetos de persistencia que puedan existir, este tipo de implementaciones se realizan
-basadas en el patrón de diseño [Unit of Work y Repository](https://medium.com/@krzychukosobudzki/repository-design-pattern-bc490b256006)
+```
+https://api.example.com/events?public=true  # returns only public events
+https://api.example.com/events?public=false  # returns only private events
+https://api.example.com/events  # returns all events, public and private
+```
 
-Estas clases no puede existir solas y debe heredarse su compartimiento en los **Driven Adapters**
+`DELETE` `PUT` `PATCH` requests to `/events/{eventId}`:
+* the response code is 405 because the API does not allow deleting or modifying events for any id value
 
-### Driven Adapters
+Your task is to complete the given project so that it passes all the test cases when running the provided unit tests. The project by default supports the use of the H2 database. Implement the `POST` request to `/events` first because testing the other methods requires `POST` to work correctly.
 
-Los driven adapter representan implementaciones externas a nuestro sistema, como lo son conexiones a servicios rest,
-soap, bases de datos, lectura de archivos planos, y en concreto cualquier origen y fuente de datos con la que debamos
-interactuar.
-
-### Entry Points
-
-Los entry points representan los puntos de entrada de la aplicación o el inicio de los flujos de negocio.
-
-## Application
-
-Este módulo es el más externo de la arquitectura, es el encargado de ensamblar los distintos módulos, resolver las dependencias y crear los beans de los casos de use (UseCases) de forma automática, inyectando en éstos instancias concretas de las dependencias declaradas. Además inicia la aplicación (es el único módulo del proyecto donde encontraremos la función “public static void main(String[] args)”.
-
-**Los beans de los casos de uso se disponibilizan automaticamente gracias a un '@ComponentScan' ubicado en esta capa.**
+## Commands
+- run: 
+```bash
+mvn clean package; java -jar target/springboot-github-events-api-1.0.jar
+```
+- install: 
+```bash
+mvn clean install
+```
+- test: 
+```bash
+mvn clean test
+```
